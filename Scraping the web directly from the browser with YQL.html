@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+ "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">  
+  <title>Scraping the web directly from the browser with YQL</title>
+</head>
+<body>
+<div id="doc" >
+  <h1>Scraping the web directly from the browser with YQL</h1>
+  <div id="bd" role="main">
+  <div id="ft" role="contentinfo"><p>Normally, to scrape data from a web page that you don't own, you need "tight" cooperation from a server (either yours to be a proxy, or the data owner's to open up permissions for cross-site scripting or even to serve a script that can "phone home" like in some google suggest <a href="http://code.google.com/p/googlesuggest-jquery/wiki/GetStarted"> tools </a>). The YQL method only requires the pages to be scraped to be accessible by robots. In which case, Yahoo's YQL can do the fetching work.<br>
+  The fetched content is made accessible as a string (either XML or JSON format, see YQL examples) available for any kind of manipulation.</p></div>
+    <ul>
+      <li><a href="http://developer.yaho.com" class="ajaxtrigger">load content from developer.yahoo.com page</a></li>
+      <li><a href="borked" class="ajaxtrigger">this is a broken link</a></li>
+      <li><a href="http://borked" class="ajaxtrigger">this is an external broken link</a></li>
+      <li><a href="http://icant.co.uk/articles/crossdomain-ajax-with-jquery/waiting-for-godot.php" class="ajaxtrigger">this url takes 10 seconds to serve content and times out (paste SELECT * FROM html WHERE url="http://icant.co.uk/articles/crossdomain-ajax-with-jquery/waiting-for-godot.php" in the YQL console to verify the timeout)</a></li>
+    </ul>
+    <HR>
+    <div id="target">> content will be loaded here <</div>
+    <HR>
+  </div>
+  <h2>Notes</h1>
+  <div id="ft" role="contentinfo"><p>Originally written by <a href="http://wait-till-i.com/index.php">Christian Heilmann</a>.</p></div>
+  <div id="ft" role="contentinfo"><p>...other interesting client-side scraping techniques <a href="http://christianheilmann.com/tag/scraping/">here</a>.</p></div>
+  <div id="ft" role="contentinfo"><p>This tiny adaptation is by Davide Della Casa.</p></div>
+  <div id="ft" role="contentinfo"><p>Also see some <a href="http://www.readwriteweb.com/hack/2010/09/10-great-yql-one-liners.php">other YQL examples</a>.</p></div>
+  <div id="ft" role="contentinfo"><p>And <a href="http://24ways.org/2009/the-web-is-your-cms">this other article from http://24ways.org/2009/the-web-is-your-cms</a>.</p></div>
+  <div id="ft" role="contentinfo"><p>and <a href="http://lachlanhardy.github.com/something.js/">this project</a> which uses Raphael.js to visualise the scraped data.</p></div>
+  
+  
+
+</div>
+<script src="http://code.jquery.com/jquery-latest.pack.js"></script>
+<script>
+	
+	$(document).ready(function(){
+	  var container = $('#target');
+	  container.attr('tabIndex','-1');
+	  $('.ajaxtrigger').click(function(){
+		var trigger = $(this);
+		var url = trigger.attr('href');
+		if(!trigger.hasClass('loaded')){
+		  trigger.append('<span></span>');
+		  trigger.addClass('loaded');
+		  //var msg = trigger.find('span::last');
+		} else {
+		  //var msg = trigger.find('span::last');
+		}
+		doAjax(url,container);
+		return false;
+	  });
+	  
+	  function doAjax(url,container){
+		// if the URL starts with http
+		if(url.match('^http')){
+		  // assemble the YQL call
+		  container.html("loading...");
+		  $.getJSON("http://query.yahooapis.com/v1/public/yql?"+
+					"q=select%20*%20from%20html%20where%20url%3D%22"+
+					encodeURIComponent(url)+
+					"%22&format=xml'&callback=?",
+			function(data){
+			  if(data.results[0]){
+				var data = filterData(data.results[0]);
+				container.html(data);
+			  } else {
+				var errormsg = '<p>Error: could not load the page.</p>';
+				container.html(errormsg);
+			  }
+			}
+		  );
+		} else {
+		  $.ajax({
+			url: url,
+			timeout:5000,
+			success: function(data){
+			  container.html(data);
+			},
+			error: function(req,error){
+			  if(error === 'error'){error = req.statusText;}
+			  var errormsg = 'There was a communication error: '+error;
+				container.html(errormsg);
+			},
+			beforeSend: function(data){
+				container.html("loading...");
+			}
+		  });
+		}
+	  }
+	  function filterData(data){
+		// filter all the nasties out
+		// no body tags
+		data = data.replace(/<?\/body[^>]*>/g,'');
+		// no linebreaks
+		data = data.replace(/[\r|\n]+/g,'');
+		// no comments
+		data = data.replace(/<--[\S\s]*?-->/g,'');
+		// no noscript blocks
+		data = data.replace(/<noscript[^>]*>[\S\s]*?<\/noscript>/g,'');
+		// no script blocks
+		data = data.replace(/<script[^>]*>[\S\s]*?<\/script>/g,'');
+		// no self closing scripts
+		data = data.replace(/<script.*\/>/,'');
+		// [... add as needed ...]
+		return data;
+	  }
+	});
+
+</script>
+
+
+</body>
+</html>
